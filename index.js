@@ -25,7 +25,7 @@ const log =
 	err: (msg) => console.log('!!!', msg)
 };
 
-const usage =
+const USAGE =
 	[
 		'TCP=>TLS proxy using HTTP CONNECT method',
 		'Parameters:',
@@ -76,11 +76,6 @@ function socket_replyHTTP(close, httpCode, httpMessage)
 
 // ~~ Constructors ~~
 
-/**
-	Chain two duplex streams together (two-way pipe + sync-ed closing)
-		@param {stream.Duplex} stm1 - stream #1
-		@param {stream.Duplex} stm2 - stream #2
- */
 function twoWayPipe(stm1, stm2)
 {
 	stm1.pipe(stm2);
@@ -210,7 +205,7 @@ for (let i = 0; i < process.argv.length; i++)
 	{
 		case '-?':
 		case '-h':
-			console.log(usage);
+			console.log(USAGE);
 			return;
 		case '-p':
 			config.listenPort = parseInt(process.argv[i+1], 10);
