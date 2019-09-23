@@ -77,6 +77,20 @@ function socket_replyHTTP(close, httpCode, httpMessage)
 // ~~ Constructors ~~
 
 /**
+	Chain two duplex streams together (two-way pipe + sync-ed closing)
+		@param {stream.Duplex} stm1 - stream #1
+		@param {stream.Duplex} stm2 - stream #2
+ */
+function twoWayPipe(stm1, stm2)
+{
+	stm1.pipe(stm2);
+	stm2.pipe(stm1);
+	// ! pipe() doesn't close writable end on readable end's error, we must do it manually
+	stm1.on('close', () => stm2.destroy());
+	stm2.on('close', () => stm1.destroy());
+}
+
+/**
 	Create outgoing TLS socket
 		@param {net.Socket} inSocket - incoming socket
 		@param {Object} [logger]
@@ -107,9 +121,7 @@ function createOutTLSSock(inSocket, logger)
 		function ()
 		{
 			// if connect succeeded, pipe incoming socket to outgoing TLS one
-			this.inSocket.pipe(this);
-			this.pipe(this.inSocket);
-
+			twoWayPipe(this, this.inSocket);
 			logger.info(`Tunnel #${this.inSocket.connID} ready`);
 		});
 
