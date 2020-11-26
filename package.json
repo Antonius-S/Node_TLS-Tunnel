@@ -1,0 +1,16 @@
+{
+  "name": "tls-tunnel",
+  "version": "0.0.1",
+  "description": "TCP=>TLS proxy using HTTP CONNECT method",
+  "author": "A_S",
+  "license": "MIT",
+  "main": "index.js",
+  "keywords": [
+    "tls",
+    "proxy",
+    "tunnel"
+  ],
+  "engines": {
+    "node": ">= 10.16.0 < 11.x || >= 11.13.0"
+  }
+}
