@@ -186,7 +186,7 @@ function HTTPProxyServer(options, logger)
         socket.replyHTTP(true, STATUS_CODE_405, 'Invalid URL');
         return;
       }
-      url.port = url.port | DEFAULT_PORT;
+      url.port = url.port || DEFAULT_PORT;
 
       logger.info(`Connection #${socket.connID}, establishing tunnel to ${url.hostname}:${url.port}`);
 
