@@ -27,10 +27,11 @@ const log =
 
 const USAGE =
   [
-    'TCP=>TLS proxy using HTTP CONNECT method',
+    'TCP => TLS proxy using HTTP CONNECT method.',
+    'TLS-enable apps that only use plain sockets but can connect via proxy.',
     'Parameters:',
-    '  -?, -h    - print this info',
-    `  -p port   - port to listen (default: ${config.listenPort})`
+    '  -?, -h  - print this info',
+    `  -p port - port to listen (default: ${config.listenPort})`
   ].join('\n');
 
 // ~~ Utils ~~
@@ -47,7 +48,7 @@ const CRLF = common.CRLF;
 
 /**
   Write HTTP response and optionally close socket.
-  @this net.Socket
+  @this {NodeJS.Socket}
   Intended to be used as a method of `net.Socket` object or prototype!
     @param {Boolean} close - if `true`, close the connection after send.
     @param {Number} httpCode - response code
@@ -95,7 +96,7 @@ function twoWayPipe(stm1, stm2)
     @param {NodeJS.Socket} inSocket - incoming socket
     @param {Object} [logger] - logger
 
-    @returns {tls.Socket}
+    @returns {tls.TLSSocket}
  */
 function createOutTLSSock(inSocket, logger)
 {
@@ -105,12 +106,12 @@ function createOutTLSSock(inSocket, logger)
 
   res.on('connect',
     /** @private */
-    function () { logger.info(`Tunnel #${this.inSocket.connID} connected to dest ${this.remoteAddress}`); }
+    function () { logger.trace(`Tunnel #${this.inSocket.connID} connected to dest ${this.remoteAddress}`); }
   );
 
   res.on('close',
     /** @private */
-    function () { logger.info(`Tunnel #${this.inSocket.connID} closed`); }
+    function () { logger.trace(`Tunnel #${this.inSocket.connID} closed`); }
   );
 
   res.on('error',
@@ -118,13 +119,13 @@ function createOutTLSSock(inSocket, logger)
     function (err) { logger.warn(`Tunnel #${this.inSocket.connID} error: ${err}`); }
   );
 
-  res.on('connect',
+  res.on('secureConnect',
     /** @private */
     function ()
     {
       // if connect succeeded, pipe incoming socket to outgoing TLS one
       twoWayPipe(this, this.inSocket);
-      logger.info(`Tunnel #${this.inSocket.connID} ready`);
+      logger.trace(`Tunnel #${this.inSocket.connID} ready`);
     });
 
   return res;
@@ -144,12 +145,12 @@ function HTTPProxyServer(options, logger)
   res.connID = 1;
 
   res.on('listening',
-    /** @this http.Server */
+    /** @this {http.Server} */
     function () { logger.info(`Listening to ${this.address().port}`); }
   );
 
   res.on('connection',
-    /** @this http.Server
+    /** @this {http.Server}
       @private */
     function (socket)
     {
@@ -158,13 +159,13 @@ function HTTPProxyServer(options, logger)
       this.connID++;
 
       socket.on('close', () => logger.trace(`Connection #${socket.connID} closed`));
-      socket.on('error', (err) => logger.trace(`Connection #${socket.connID} error: ${err}`));
+      socket.on('error', (err) => logger.warn(`Connection #${socket.connID} error: ${err}`));
       socket.replyHTTP = socket_replyHTTP;
     });
 
   // All requests beside CONNECT
   res.on('request',
-    /** @this http.Server
+    /** @this {http.Server}
       @private */
     function (req, resp)
     {
@@ -173,7 +174,7 @@ function HTTPProxyServer(options, logger)
     });
 
   res.on('connect',
-    /** @this http.Server
+    /** @this {http.Server}
       @private */
     function(req, socket, head)
     {
@@ -188,21 +189,22 @@ function HTTPProxyServer(options, logger)
       }
       url.port = url.port || DEFAULT_PORT;
 
-      logger.info(`Connection #${socket.connID}, establishing tunnel to ${url.hostname}:${url.port}`);
+      logger.trace(`Connection #${socket.connID}, establishing tunnel to ${url.hostname}:${url.port}`);
 
+      logger.trace(`Tunnel #${socket.connID}, connecting to ${url.hostname}:${url.port}`);
       const outTLSSock = createOutTLSSock(socket, logger);
-      outTLSSock.on('connect',
-        /** @this tls.Socket */
+      outTLSSock.connect(url.port, url.hostname,
+        /** @this {tls.TLSSocket} */
         function ()
         {
+          // 'secureConnect' is not called when socket is created via new TLSSocket() (WTF!)
+          // So imitate it manually
+          this.emit('secureConnect');
           socket.replyHTTP(false, STATUS_CODE_200, 'Connection Established');
           // Send head if present
           if (head)
             this.write(head);
         });
-
-      logger.trace(`Tunnel #${socket.connID}, connecting to ${url.hostname}:${url.port}`);
-      outTLSSock.connect(url.port, url.hostname);
     });
 
   return res;
