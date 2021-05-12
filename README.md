@@ -12,7 +12,6 @@ Client sends request to `proxyhost:proxyaddr`
 
 ```
 CONNECT secure.example.com:443 HTTP/1.1
-Host: proxyhost:proxyaddr
 ```
 
 Remote port is optional, default is `443`.
